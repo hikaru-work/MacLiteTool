@@ -1,0 +1,169 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SecureTokenTool.ViewModels"
+        xmlns:models="using:SecureTokenTool.Models"
+        x:Class="SecureTokenTool.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="640" Height="820"
+        MinWidth="560" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Title="Secure Token 付与ツール">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="20">
+        <Grid.Styles>
+            <Style Selector="TextBlock.label">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="#555555" />
+            </Style>
+            <Style Selector="TextBlock.section">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style Selector="Border.card">
+                <Setter Property="Background" Value="#F7F7F9" />
+                <Setter Property="BorderBrush" Value="#E2E2E6" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="Margin" Value="0,0,0,12" />
+            </Style>
+            <Style Selector="Border.badge">
+                <Setter Property="Background" Value="#E3F0E3" />
+                <Setter Property="CornerRadius" Value="3" />
+                <Setter Property="Padding" Value="5,1" />
+            </Style>
+            <Style Selector="Border.hint">
+                <Setter Property="Background" Value="#FFF6E5" />
+                <Setter Property="BorderBrush" Value="#EFD9A8" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="5" />
+                <Setter Property="Padding" Value="9,7" />
+            </Style>
+        </Grid.Styles>
+
+        <!-- ヘッダ + 更新ボタン -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                <TextBlock Text="Secure Token 付与ツール"
+                           FontSize="20" FontWeight="SemiBold" />
+                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#666666"
+                           Text="端末上のユーザから付与元・付与対象を選び、Secure Token を付与します。" />
+            </StackPanel>
+            <Button Grid.Column="1" VerticalAlignment="Center"
+                    Content="ユーザ一覧を更新"
+                    Command="{Binding LoadUsersCommand}" />
+        </Grid>
+
+        <!-- 親アカウント -->
+        <Border Grid.Row="1" Classes="card">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="section" Text="親アカウント(付与元 / Secure Token 保有者)" />
+                <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="ユーザ" />
+                    <ComboBox ItemsSource="{Binding TokenHolders}"
+                              SelectedItem="{Binding SelectedParent}"
+                              PlaceholderText="Secure Token 保有者を選択"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="{Binding !IsBusy}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:LocalUser">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Username}"
+                                               VerticalAlignment="Center" />
+                                    <Border Classes="badge" IsVisible="{Binding IsAdmin}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="管理者" FontSize="10"
+                                                   Foreground="#2A7D2A" />
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- 標準ユーザ選択時の昇格通知 -->
+                <Border Classes="hint" IsVisible="{Binding ParentNeedsPromotion}">
+                    <TextBlock FontSize="11" Foreground="#8A6516" TextWrapping="Wrap"
+                               Text="この親アカウントは標準ユーザです。付与時に管理者アカウント(macadmin)の権限で一時的に管理者へ昇格し、完了後に標準ユーザへ戻します。" />
+                </Border>
+
+                <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="パスワード" />
+                    <TextBox Text="{Binding ParentPassword}" PasswordChar="●"
+                             Watermark="親アカウントのパスワード"
+                             IsEnabled="{Binding !IsBusy}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 子アカウント -->
+        <Border Grid.Row="2" Classes="card">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="section" Text="子アカウント(付与対象 / Secure Token 未保有)" />
+                <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="ユーザ" />
+                    <ComboBox ItemsSource="{Binding NonTokenUsers}"
+                              SelectedItem="{Binding SelectedChild}"
+                              PlaceholderText="付与対象ユーザを選択"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="{Binding !IsBusy}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:LocalUser">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Username}"
+                                               VerticalAlignment="Center" />
+                                    <Border Classes="badge" IsVisible="{Binding IsAdmin}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="管理者" FontSize="10"
+                                                   Foreground="#2A7D2A" />
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="パスワード" />
+                    <TextBox Text="{Binding ChildPassword}" PasswordChar="●"
+                             Watermark="子アカウントのパスワード"
+                             IsEnabled="{Binding !IsBusy}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 付与ボタン -->
+        <Button Grid.Row="3" Content="Secure Token 付与"
+                Classes="accent"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Margin="0,4,0,12"
+                Command="{Binding GrantCommand}" />
+
+        <!-- ログ -->
+        <Border Grid.Row="4" Classes="card">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Classes="section"
+                           Text="実行ログ" Margin="0,0,0,8" />
+                <TextBox x:Name="LogBox"
+                         Text="{Binding Log}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         FontFamily="Menlo,Courier New,monospace"
+                         FontSize="11"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         VerticalAlignment="Stretch" />
+            </DockPanel>
+        </Border>
+
+        <!-- ステータスバー -->
+        <Border Grid.Row="5" Background="#F0F0F2" CornerRadius="6" Padding="12,8">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="状態:" FontSize="12" Foreground="#555555" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12" FontWeight="SemiBold" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
