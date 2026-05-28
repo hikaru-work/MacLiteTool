@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Token 付与ツール — シーケンス図</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --card-bg: #ffffff;
+    --card-border: #e2e2e6;
+    --text: #1a1a1a;
+    --text-dim: #555555;
+    --accent: #0067C0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter",
+                 "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    border-bottom: 2px solid var(--card-border);
+    padding-bottom: 8px;
+    margin: 32px 0 12px;
+  }
+  p.lead {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin: 0 0 12px;
+    line-height: 1.6;
+  }
+  .diagram {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 16px 8px;
+    margin: 0 0 28px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .loading {
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    padding: 30px 0;
+  }
+  .legend {
+    background: #f7f7f9;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+  .legend strong { color: var(--text); }
+  .legend ul { margin: 6px 0 0; padding-left: 20px; }
+  .legend code {
+    background: #ececef;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: Menlo, "SF Mono", Consolas, monospace;
+  }
+  .err {
+    background: #ffeded; border: 1px solid #f5b5b5;
+    color: #8a1a1a; padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; margin: 8px 0; white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+<h1>Secure Token 付与ツール — シーケンス図</h1>
+<p class="lead">起動時のユーザ列挙と、「付与」押下時の全体フローを示します。</p>
+
+<h2>1. 起動時 — ユーザ列挙</h2>
+<div class="diagram">
+  <div id="diagram1" class="loading">図を読み込み中...</div>
+</div>
+
+<h2>2. 「付与」押下時 — 全体フロー</h2>
+<div class="diagram">
+  <div id="diagram2" class="loading">図を読み込み中...</div>
+</div>
+
+<div class="legend">
+  <strong>読み方</strong>
+  <ul>
+    <li>背景色の区切り(0〜4)は処理フェーズに対応します</li>
+    <li><code>alt</code> / <code>opt</code> はそれぞれ「分岐」「条件付き実行」</li>
+    <li>「finally」フェーズは、上のどの段階で <code>return</code> しても必ず通ります</li>
+    <li>macadmin の認証情報を渡しているのは osascript の2箇所(昇格・降格)のみです</li>
+  </ul>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  sequence: {
+    useMaxWidth: true,
+    mirrorActors: false,
+    messageFontSize: 13,
+    actorFontSize: 14,
+    noteFontSize: 12,
+  }
+});
+
+const diagram1 = `sequenceDiagram
+    actor User as 操作者
+    participant View as MainWindow
+    participant VM as MainWindowViewModel
+    participant Svc as SecureTokenService
+    participant OS as macOS コマンド
+
+    Note over View,VM: アプリ起動
+
+    View->>VM: new MainWindowViewModel()
+    activate VM
+    Note over VM: コンストラクタが<br/>LoadUsersAsync() を起動<br/>StatusText="ユーザ一覧を取得中..."
+
+    VM->>Svc: ListLocalUsersAsync()
+    activate Svc
+    Svc->>OS: dscl . list /Users UniqueID
+    OS-->>Svc: ユーザ名 + UID 一覧
+    Note over Svc: UID 500 以上、'_' 始まりを除外
+
+    loop 各ユーザ
+        Svc->>OS: sysadminctl -secureTokenStatus user
+        OS-->>Svc: ENABLED / DISABLED
+        Svc->>OS: dseditgroup -o checkmember -m user admin
+        OS-->>Svc: yes / no
+    end
+
+    Svc-->>VM: LocalUser[]<br/>(Username, HasSecureToken, IsAdmin)
+    deactivate Svc
+
+    Note over VM: Token保有/未保有で振り分け<br/>SelectedParent/Child を既定値で選択
+    VM-->>View: TokenHolders / NonTokenUsers 更新<br/>StatusText="準備完了"<br/>IsBusy=false
+    deactivate VM
+
+    View-->>User: 画面表示`;
+
+const diagram2 = `sequenceDiagram
+    actor User as 操作者
+    participant View as MainWindow
+    participant VM as MainWindowViewModel
+    participant Svc as SecureTokenService
+    participant OS as macOS コマンド
+
+    User->>View: 親・子・パスワード入力<br/>「付与」クリック
+    View->>VM: GrantCommand 実行
+    activate VM
+    Note over VM: parentWasStandard を判定<br/>promoted=false, verified=false<br/>IsBusy=true, StatusText="パスワード確認中..."
+
+    rect rgb(255, 248, 230)
+    Note over VM,OS: 【0】パスワード事前チェック(変更なし)
+
+    alt 親が標準ユーザ かつ macadmin 未設定
+        VM-->>View: StatusText="設定エラー"
+        Note over VM: 中止(finally へ)
+    end
+
+    opt 親が標準ユーザ
+        VM->>Svc: VerifyPasswordAsync("macadmin", ...)
+        Svc->>OS: dscl /Local/Default -authonly macadmin pw
+        OS-->>Svc: exit code
+        Svc-->>VM: true / false
+    end
+
+    VM->>Svc: VerifyPasswordAsync(parent, parentPw)
+    Svc->>OS: dscl -authonly parent
+    OS-->>Svc: exit code
+    Svc-->>VM: true / false
+
+    VM->>Svc: VerifyPasswordAsync(child, childPw)
+    Svc->>OS: dscl -authonly child
+    OS-->>Svc: exit code
+    Svc-->>VM: true / false
+
+    alt 1つでもNG
+        VM-->>View: StatusText="認証エラー"<br/>(パスワードは保持)
+        Note over VM: 中止(finally へ。<br/>昇格には入らない)
+    else 全てOK
+        Note over VM: verified=true
+    end
+    end
+
+    rect rgb(232, 244, 255)
+    Note over VM,OS: 【1】昇格(親が標準ユーザの場合のみ)
+
+    opt 親が標準ユーザ
+        VM->>Svc: PromoteToAdminAsync(parent)
+        Svc->>OS: osascript: do shell script<br/>"dseditgroup -a parent admin"<br/>user name "macadmin" password "..."<br/>(stdin 経由)
+        OS-->>Svc: ProcessResult
+        Svc-->>VM: ProcessResult
+
+        alt 昇格失敗
+            VM-->>View: StatusText="昇格失敗"
+            Note over VM: 中止。promoted=false のまま<br/>→ finally では何もしない
+        else 成功
+            Note over VM: promoted=true
+        end
+    end
+    end
+
+    rect rgb(232, 255, 232)
+    Note over VM,OS: 【2】Secure Token 付与
+
+    VM->>Svc: GrantSecureTokenAsync(child, childPw, parent, parentPw)
+    Svc->>OS: sysadminctl -secureTokenOn child<br/>-password - -adminUser parent -adminPassword -<br/>(stdin: 子pw → 親pw の順)
+    OS-->>Svc: ProcessResult
+    Svc-->>VM: ProcessResult
+    end
+
+    rect rgb(248, 240, 255)
+    Note over VM,OS: 【3】検証(終了コードは信用しない)
+
+    VM->>Svc: GetSecureTokenStatusAsync(child)
+    Svc->>OS: sysadminctl -secureTokenStatus child
+    OS-->>Svc: ENABLED / DISABLED / Unknown
+    Svc-->>VM: (TokenState, raw)
+
+    alt Enabled
+        VM->>Svc: GetFileVaultStatusAsync()
+        Svc->>OS: fdesetup status
+        OS-->>Svc: FileVault is On/Off
+        Svc-->>VM: status
+        VM-->>View: StatusText="付与成功"
+    else Disabled / Unknown
+        VM-->>View: StatusText="付与失敗"
+    end
+    end
+
+    rect rgb(255, 240, 240)
+    Note over VM,OS: 【4】finally: 降格 + 後処理(必ず実行)
+
+    opt promoted == true
+        VM->>Svc: DemoteFromAdminAsync(parent)
+        Svc->>OS: osascript: do shell script<br/>"dseditgroup -d parent admin"<br/>user name "macadmin" password "..."
+        OS-->>Svc: ProcessResult
+        Svc-->>VM: ProcessResult
+        alt 降格失敗
+            VM-->>View: StatusText="要確認: 親が管理者のまま"
+        end
+    end
+
+    opt verified == true
+        Note over VM: ParentPassword = ""<br/>ChildPassword = ""<br/>(認証エラーで止まった場合は保持)
+    end
+
+    VM->>Svc: ListLocalUsersAsync() (再列挙)
+    Svc-->>VM: LocalUser[]
+    VM-->>View: TokenHolders / NonTokenUsers 更新<br/>IsBusy=false
+    end
+
+    deactivate VM
+    View-->>User: 実行ログ・ステータス表示`;
+
+async function render(id, source) {
+  const el = document.getElementById(id);
+  try {
+    const { svg } = await mermaid.render(id + '-svg', source);
+    el.innerHTML = svg;
+    el.classList.remove('loading');
+  } catch (e) {
+    el.classList.remove('loading');
+    el.innerHTML = '<div class="err">図の描画に失敗しました:\n' +
+                   String(e.message || e) + '</div>';
+  }
+}
+
+(async () => {
+  await render('diagram1', diagram1);
+  await render('diagram2', diagram2);
+})();
+</script>
+
+</body>
+</html>

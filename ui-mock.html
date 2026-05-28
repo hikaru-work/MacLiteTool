@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Token 付与ツール — UIモック</title>
+<style>
+  :root {
+    --card-bg: #F7F7F9;
+    --card-border: #E2E2E6;
+    --status-bg: #F0F0F2;
+    --field-border: #C9C9CE;
+    --accent: #0067C0;
+    --accent-hover: #0058A8;
+    --text: #1A1A1A;
+    --text-dim: #5A5A5A;
+    --text-faint: #8A8A8E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter",
+                 "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    background: linear-gradient(150deg, #e9eaee 0%, #d4d6dc 55%, #c6c8d0 100%);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 36px 20px 56px;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .toggle {
+    display: inline-flex;
+    background: rgba(255,255,255,.7);
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 9px; padding: 3px;
+    margin-bottom: 26px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .toggle button {
+    font: inherit; font-size: 12.5px;
+    border: none; background: transparent; color: var(--text-dim);
+    padding: 6px 16px; border-radius: 7px;
+    cursor: pointer; transition: background .15s, color .15s;
+  }
+  .toggle button.active {
+    background: #fff; color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  }
+  .window {
+    width: 640px; max-width: 100%;
+    background: #fff; border-radius: 11px; overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0,0,0,.30), 0 4px 14px rgba(0,0,0,.14);
+  }
+  .titlebar {
+    height: 42px;
+    background: linear-gradient(180deg, #f6f6f7, #e9e9ec);
+    border-bottom: 1px solid #d6d6da;
+    display: flex; align-items: center; padding: 0 14px;
+    position: relative;
+  }
+  .lights { display: flex; gap: 8px; }
+  .light {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 0.5px solid rgba(0,0,0,.12);
+  }
+  .light.red { background: #ff5f57; }
+  .light.yellow { background: #febc2e; }
+  .light.green { background: #28c840; }
+  .titlebar .title {
+    position: absolute; left: 0; right: 0; text-align: center;
+    font-size: 13px; font-weight: 600; color: #3a3a3c;
+    pointer-events: none;
+  }
+  .content { padding: 20px; }
+  .header {
+    display: flex; justify-content: space-between;
+    align-items: center; gap: 16px; margin-bottom: 16px;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .header p {
+    font-size: 12px; color: var(--text-dim);
+    margin-top: 3px; line-height: 1.5;
+  }
+  .btn {
+    font: inherit; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; cursor: pointer;
+    transition: background .12s; white-space: nowrap;
+  }
+  .btn-default {
+    background: #fbfbfb; border: 1px solid var(--field-border);
+    color: var(--text);
+  }
+  .btn-default:hover { background: #f1f1f3; }
+  .btn-accent {
+    background: var(--accent); border: 1px solid var(--accent);
+    color: #fff; font-weight: 500; width: 100%;
+    padding: 9px 0; margin: 4px 0 12px;
+  }
+  .btn-accent:hover { background: var(--accent-hover); }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 16px; margin-bottom: 12px;
+  }
+  .section-title { font-size: 13px; font-weight: 600; }
+  .field { margin-top: 10px; }
+  .field:first-of-type { margin-top: 12px; }
+  .field label {
+    display: block; font-size: 12px;
+    color: var(--text-dim); margin-bottom: 3px;
+  }
+  .field input {
+    width: 100%; font: inherit; font-size: 13px;
+    padding: 6px 9px; border: 1px solid var(--field-border);
+    border-radius: 4px; background: #fff; color: var(--text); outline: none;
+  }
+  .field input::placeholder { color: var(--text-faint); }
+  .field input:focus { border-color: var(--accent); }
+  .combo-wrap { position: relative; }
+  .combo-wrap::after {
+    content: ""; position: absolute;
+    right: 11px; top: 50%; margin-top: -2px;
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #7a7a7e;
+    pointer-events: none;
+  }
+  .field select {
+    width: 100%; font: inherit; font-size: 13px;
+    padding: 6px 28px 6px 9px;
+    border: 1px solid var(--field-border); border-radius: 4px;
+    background: #fff; color: var(--text); outline: none;
+    -webkit-appearance: none; appearance: none; cursor: pointer;
+  }
+  .field select:focus { border-color: var(--accent); }
+  .hint {
+    margin-top: 10px;
+    background: #FFF6E5; border: 1px solid #EFD9A8;
+    border-radius: 5px; padding: 9px 11px;
+    font-size: 11px; line-height: 1.55; color: #8A6516;
+  }
+  .log-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 16px; margin-bottom: 12px;
+  }
+  .log-card .section-title { margin-bottom: 8px; }
+  .log {
+    height: 220px; overflow-y: auto;
+    font-family: Menlo, "SF Mono", Consolas, monospace;
+    font-size: 11px; line-height: 1.65; color: #333;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .log .ok { color: #1a7f37; }
+  .log .warn { color: #b3540a; }
+  .log .info { color: #555; }
+  .log .head { color: #1a1a1a; font-weight: 600; }
+  .statusbar {
+    background: var(--status-bg); border-radius: 6px;
+    padding: 8px 12px; font-size: 12px; display: flex; gap: 4px;
+  }
+  .statusbar .label { color: var(--text-dim); }
+  .statusbar .value { font-weight: 600; }
+  .statusbar .value.success { color: #1a7f37; }
+  .statusbar .value.idle { color: var(--text-dim); }
+  .caption {
+    margin-top: 22px; font-size: 11.5px; color: #6a6c74;
+    text-align: center; max-width: 560px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+  <div class="toggle">
+    <button id="tab-idle" class="active" onclick="setState('idle')">読み込み後</button>
+    <button id="tab-after" onclick="setState('after')">付与成功後</button>
+  </div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights">
+        <span class="light red"></span>
+        <span class="light yellow"></span>
+        <span class="light green"></span>
+      </div>
+      <span class="title">Secure Token 付与ツール</span>
+    </div>
+
+    <div class="content">
+      <div class="header">
+        <div>
+          <h1>Secure Token 付与ツール</h1>
+          <p>端末上のユーザから付与元・付与対象を選び、Secure Token を付与します。</p>
+        </div>
+        <button class="btn btn-default">ユーザ一覧を更新</button>
+      </div>
+
+      <!-- 親アカウント -->
+      <div class="card">
+        <div class="section-title">親アカウント(付与元 / Secure Token 保有者)</div>
+        <div class="field">
+          <label>ユーザ</label>
+          <div class="combo-wrap">
+            <select id="parentSel">
+              <option value="mac2407587">mac2407587</option>
+              <option value="mac2503767">mac2503767</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint">
+          この親アカウントは標準ユーザです。付与時に管理者アカウント(macadmin)の権限で一時的に管理者へ昇格し、完了後に標準ユーザへ戻します。
+        </div>
+        <div class="field">
+          <label>パスワード</label>
+          <input id="parentPass" type="password" placeholder="親アカウントのパスワード">
+        </div>
+      </div>
+
+      <!-- 子アカウント -->
+      <div class="card">
+        <div class="section-title">子アカウント(付与対象 / Secure Token 未保有)</div>
+        <div class="field">
+          <label>ユーザ</label>
+          <div class="combo-wrap">
+            <select id="childSel">
+              <option value="mac2407455">mac2407455</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>パスワード</label>
+          <input id="childPass" type="password" placeholder="子アカウントのパスワード">
+        </div>
+      </div>
+
+      <button class="btn btn-accent">Secure Token 付与</button>
+
+      <div class="log-card">
+        <div class="section-title">実行ログ</div>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="statusbar">
+        <span class="label">状態:</span>
+        <span class="value" id="status"></span>
+      </div>
+    </div>
+  </div>
+
+  <p class="caption">
+    Avalonia (.NET 9 / FluentTheme) アプリのUIプレビュー。「付与」押下後、まず
+    パスワードを事前検証し、誤りがあれば昇格に入らず中止します。全て正しければ
+    macadmin 権限で昇格 → 付与 → 降格を自動実行します。
+  </p>
+
+<script>
+  const enumLog = [
+    {c:'head', t:'[14:30:02] === ユーザ一覧を取得 ==='},
+    {c:'',     t:'[14:30:03] 検出: 全3件 / Token保有 2 / 未保有 1'},
+    {c:'',     t:'[14:30:03]   mac2407455 | Token=無効 | 管理者=いいえ'},
+    {c:'',     t:'[14:30:03]   mac2407587 | Token=有効 | 管理者=いいえ'},
+    {c:'',     t:'[14:30:03]   mac2503767 | Token=有効 | 管理者=いいえ'},
+  ];
+  const grantLog = [
+    {c:'',     t:''},
+    {c:'head', t:'[14:31:06] === パスワード事前チェック ==='},
+    {c:'',     t:'[14:31:06]   管理者 [macadmin]: OK'},
+    {c:'',     t:'[14:31:07]   親 [mac2407587]: OK'},
+    {c:'',     t:'[14:31:07]   子 [mac2407455]: OK'},
+    {c:'ok',   t:'[14:31:07] ✓ すべてのパスワードを確認しました。'},
+    {c:'',     t:'[14:31:07] 親 [mac2407587] は標準ユーザです。管理者アカウント(macadmin)の権限で一時的に管理者へ昇格します。'},
+    {c:'ok',   t:'[14:31:08] ✓ [mac2407587] を管理者へ昇格しました。'},
+    {c:'head', t:'[14:31:08] === Secure Token 付与: [mac2407455] ← 付与元 [mac2407587] ==='},
+    {c:'',     t:'[14:31:09] sysadminctl 終了コード: 0'},
+    {c:'',     t:'[14:31:10] 付与後の [mac2407455] の Secure Token: Enabled'},
+    {c:'ok',   t:'[14:31:10] ✅ Secure Token の付与に成功しました。'},
+    {c:'',     t:'[14:31:10] FileVault 状態: FileVault is On.'},
+    {c:'info', t:"[14:31:10] ℹ Jamf Pro へ反映するには、対象Macで 'sudo jamf recon' を実行してください。"},
+    {c:'',     t:'[14:31:11] 親 [mac2407587] を標準ユーザへ戻します。'},
+    {c:'ok',   t:'[14:31:12] ✓ [mac2407587] を標準ユーザへ戻しました。'},
+  ];
+
+  function render(lines) {
+    return lines
+      .map(l => l.c ? `<span class="${l.c}">${l.t}</span>` : l.t)
+      .join('\n');
+  }
+
+  function setState(mode) {
+    const after = mode === 'after';
+    document.getElementById('tab-after').classList.toggle('active', after);
+    document.getElementById('tab-idle').classList.toggle('active', !after);
+
+    const pp = document.getElementById('parentPass');
+    const cp = document.getElementById('childPass');
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+
+    pp.value = ''; cp.value = '';
+    if (after) {
+      log.innerHTML = render(enumLog.concat(grantLog));
+      status.textContent = '付与成功';
+      status.className = 'value success';
+    } else {
+      log.innerHTML = render(enumLog);
+      status.textContent = '準備完了';
+      status.className = 'value idle';
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+
+  setState('idle');
+</script>
+</body>
+</html>
